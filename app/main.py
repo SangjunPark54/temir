@@ -12,6 +12,7 @@ import time
 
 import qrcode
 from fastapi import FastAPI, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -21,6 +22,14 @@ MAX_FILE_BYTES = 8 * 1024 * 1024     # 업로드 파일당 8MB (클라이언트�
 MAX_ROOM_MEDIA_BYTES = 60 * 1024 * 1024
 
 app = FastAPI(title="Temir")
+
+# 프론트엔드를 다른 곳(HF Static Space 등)에서 서빙하는 구성을 허용
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class Room:
@@ -143,10 +152,14 @@ async def get_media(code: str, media_id: str):
 
 
 @app.get("/qr/{code}.png")
-async def qr_png(code: str, request: Request):
-    proto = request.headers.get("x-forwarded-proto", request.url.scheme)
-    host = request.headers.get("x-forwarded-host", request.headers.get("host", ""))
-    url = f"{proto}://{host}/remote?code={code}"
+async def qr_png(code: str, request: Request, target: str | None = None):
+    # 프론트가 다른 호스트에 있으면 QR에 담을 리모컨 URL을 target으로 지정할 수 있다
+    if target and target.startswith(("http://", "https://")):
+        url = target
+    else:
+        proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+        host = request.headers.get("x-forwarded-host", request.headers.get("host", ""))
+        url = f"{proto}://{host}/remote?code={code}"
     img = qrcode.make(url, box_size=10, border=2)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
@@ -232,3 +245,5 @@ async def remote_page():
 
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+# tv.html / remote.html / config.js 같은 정적 경로도 루트에서 서빙 (HF Static Space와 경로 호환)
+app.mount("/", StaticFiles(directory="static", html=True), name="root")

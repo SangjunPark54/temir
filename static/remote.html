@@ -236,8 +236,16 @@
   </nav>
 </div>
 
+<script src="/config.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
+
+// 백엔드 주소: config.js에 지정돼 있으면 그쪽, 아니면 현재 호스트
+const BASE = (window.TEMIR_BACKEND || "").replace(/\/+$/, "");
+const WS_BASE = BASE
+  ? BASE.replace(/^http/, "ws")
+  : `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}`;
+const mediaUrl = (u) => (u && !u.startsWith("http") ? BASE + u : u);
 
 let code = null;
 let ws = null;
@@ -249,15 +257,15 @@ let lastLiveSent = 0;
 
 /* ── 접속 ───────────────────────────────── */
 async function tryJoin(c) {
-  const r = await fetch(`/api/room/${c}`);
-  if (!r.ok) return false;
+  const r = await fetch(`${BASE}/api/room/${c}`).catch(() => null);
+  if (!r || !r.ok) return false;
   code = c;
   localStorage.setItem("temir-code", c);
   $("hdr-code").textContent = c;
   $("join").style.display = "none";
   $("main").classList.add("on");
-  const media = await fetch(`/api/media/${c}`).then((x) => x.json()).catch(() => ({ items: [] }));
-  photos = media.items || [];
+  const media = await fetch(`${BASE}/api/media/${c}`).then((x) => x.json()).catch(() => ({ items: [] }));
+  photos = (media.items || []).map(mediaUrl);
   renderThumbs();
   connect();
   return true;
@@ -281,8 +289,7 @@ $("join-code").addEventListener("input", (e) => {
 
 /* ── WebSocket ───────────────────────────── */
 function connect() {
-  const proto = location.protocol === "https:" ? "wss" : "ws";
-  ws = new WebSocket(`${proto}://${location.host}/ws/${code}?role=remote`);
+  ws = new WebSocket(`${WS_BASE}/ws/${code}?role=remote`);
   ws.onopen = () => { wsAttempt = 0; };
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
@@ -389,8 +396,8 @@ $("photo-file").addEventListener("change", async (e) => {
     const form = new FormData();
     form.append("file", blob, "photo.jpg");
     try {
-      const r = await fetch(`/api/upload/${code}`, { method: "POST", body: form });
-      if (r.ok) photos.push((await r.json()).url);
+      const r = await fetch(`${BASE}/api/upload/${code}`, { method: "POST", body: form });
+      if (r.ok) photos.push(mediaUrl((await r.json()).url));
     } catch (_) {}
   }
   status.textContent = `완료 — ${photos.length}장`;

@@ -191,8 +191,16 @@
   </section>
 </div>
 
+<script src="/config.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
+
+// 백엔드 주소: config.js에 지정돼 있으면 그쪽, 아니면 현재 호스트
+const BASE = (window.TEMIR_BACKEND || "").replace(/\/+$/, "");
+const WS_BASE = BASE
+  ? BASE.replace(/^http/, "ws")
+  : `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}`;
+const mediaUrl = (u) => (u && !u.startsWith("http") ? BASE + u : u);
 
 let code = null;
 let ws = null;
@@ -206,26 +214,34 @@ let map = null, mapMarker = null, leafletLoading = null;
 /* ── 부팅: 룸 확보 ─────────────────────────── */
 async function boot() {
   const urlCode = new URLSearchParams(location.search).get("code");
-  if (urlCode) {
-    const r = await fetch(`/api/room/${urlCode}`);
-    if (r.ok) code = urlCode;
-  }
-  if (!code) {
-    const r = await fetch("/api/room", { method: "POST" });
-    code = (await r.json()).code;
-    history.replaceState(null, "", `/tv?code=${code}`);
+  try {
+    if (urlCode) {
+      const r = await fetch(`${BASE}/api/room/${urlCode}`);
+      if (r.ok) code = urlCode;
+    }
+    if (!code) {
+      const r = await fetch(`${BASE}/api/room`, { method: "POST" });
+      code = (await r.json()).code;
+      history.replaceState(null, "", `${location.pathname}?code=${code}`);
+    }
+  } catch (_) {
+    // 백엔드가 잠들어 있으면(무료 호스팅 콜드스타트) 깨어날 때까지 재시도
+    $("bar-status").textContent = "서버 깨우는 중…";
+    setTimeout(boot, 4000);
+    return;
   }
   $("bar-code").textContent = code;
   $("pair-code").innerHTML = "<i></i><i></i><i></i><i></i>" + code.split("").join(" ");
-  $("pair-qr").src = `/qr/${code}.png`;
+  const remotePage = location.pathname.endsWith(".html") ? "remote.html" : "remote";
+  const remoteUrl = new URL(`${remotePage}?code=${code}`, location.href).href;
+  $("pair-qr").src = `${BASE}/qr/${code}.png?target=${encodeURIComponent(remoteUrl)}`;
   $("pair-url").textContent = location.host;
   connect();
 }
 
 /* ── WebSocket ────────────────────────────── */
 function connect() {
-  const proto = location.protocol === "https:" ? "wss" : "ws";
-  ws = new WebSocket(`${proto}://${location.host}/ws/${code}?role=tv`);
+  ws = new WebSocket(`${WS_BASE}/ws/${code}?role=tv`);
 
   ws.onopen = () => { wsAttempt = 0; };
   ws.onmessage = (e) => {
@@ -238,7 +254,7 @@ function connect() {
       updatePresence();
     } else if (msg.type === "error" && msg.error === "room-not-found") {
       code = null;
-      history.replaceState(null, "", "/tv");
+      history.replaceState(null, "", location.pathname);
       boot();
     }
   };
@@ -339,7 +355,7 @@ function showPhoto(p) {
   const items = p.items || [];
   const idx = Math.min(Math.max(p.index || 0, 0), items.length - 1);
   if (items.length === 0) return;
-  $("photo-img").src = items[idx];
+  $("photo-img").src = mediaUrl(items[idx]);
   $("photo-idx").textContent = idx + 1;
   $("photo-total").textContent = items.length;
 }
