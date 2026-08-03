@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Temir · Tesla Screen</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚙</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/temir.css">
+<style>
+  body { overflow: hidden; }
+  .stage { position: fixed; inset: 0; z-index: 1; }
+  .scene { position: absolute; inset: 0; display: none; }
+  .scene.on { display: flex; }
+
+  /* ── 상단 HUD 바 ─────────────────────────── */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 30;
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 22px;
+    background: linear-gradient(180deg, rgba(7, 8, 11, 0.92), transparent);
+    transition: opacity 0.4s, transform 0.4s;
+  }
+  .topbar.hidden { opacity: 0; transform: translateY(-8px); pointer-events: none; }
+  .topbar .wordmark { font-size: 17px; }
+  .chip {
+    font-family: var(--font-display);
+    font-size: 13px; letter-spacing: 0.22em;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    padding: 5px 14px;
+    color: var(--dim);
+    display: flex; align-items: center; gap: 9px;
+  }
+  .chip b { color: var(--amber); font-weight: 600; }
+  .spacer { flex: 1; }
+  .iconbtn {
+    border: 1px solid var(--line-strong);
+    background: rgba(18, 21, 29, 0.8);
+    color: var(--text);
+    border-radius: 10px;
+    width: 40px; height: 40px;
+    font-size: 17px;
+    cursor: pointer;
+  }
+
+  /* ── 페어링 ─────────────────────────────── */
+  #scene-pair { flex-direction: column; align-items: center; justify-content: center; gap: 4vh; }
+  #scene-pair .hud-label { font-size: 13px; }
+  .paircode {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(64px, 13vw, 150px);
+    letter-spacing: 0.22em;
+    text-indent: 0.22em;
+    color: var(--text);
+    text-shadow: 0 0 42px var(--amber-glow);
+    padding: 8px 30px;
+  }
+  .pairrow { display: flex; align-items: center; gap: 5vw; flex-wrap: wrap; justify-content: center; }
+  .qrbox { background: #fff; border-radius: 16px; padding: 12px; line-height: 0; }
+  .qrbox img { width: clamp(150px, 21vw, 240px); height: auto; }
+  .pairhelp { max-width: 380px; color: var(--dim); font-size: clamp(14px, 1.6vw, 17px); line-height: 1.9; text-align: left; }
+  .pairhelp b { color: var(--text); }
+  .pairurl { font-family: var(--font-display); color: var(--amber); letter-spacing: 0.06em; }
+  .pairstatus { display: flex; align-items: center; gap: 10px; color: var(--dim); font-size: 14px; }
+
+  /* ── 대기(시계) ──────────────────────────── */
+  #scene-idle { flex-direction: column; align-items: center; justify-content: center; gap: 2vh; }
+  .clock {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(90px, 17vw, 220px);
+    letter-spacing: 0.04em;
+    line-height: 1;
+    color: var(--text);
+  }
+  .clock .sec { color: var(--amber); font-size: 0.42em; vertical-align: 18%; margin-left: 0.18em; }
+  .datefmt { color: var(--dim); font-size: clamp(15px, 2vw, 22px); letter-spacing: 0.3em; text-transform: uppercase; font-family: var(--font-display); }
+
+  /* ── 유튜브 ─────────────────────────────── */
+  #scene-youtube { background: #000; }
+  #yt-holder, #yt-holder iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .tapstart {
+    position: absolute; inset: 0; z-index: 5;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+    background: rgba(7, 8, 11, 0.88);
+    cursor: pointer;
+  }
+  .tapstart .play {
+    width: 96px; height: 96px; border-radius: 50%;
+    border: 2px solid var(--amber);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px; color: var(--amber);
+    box-shadow: 0 0 50px var(--amber-glow);
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+
+  /* ── 사진 ──────────────────────────────── */
+  #scene-photo { background: #000; align-items: center; justify-content: center; }
+  #photo-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .photocount {
+    position: absolute; bottom: 26px; right: 26px;
+    font-family: var(--font-display); letter-spacing: 0.2em;
+    background: rgba(7, 8, 11, 0.7); border: 1px solid var(--line-strong);
+    border-radius: 999px; padding: 8px 18px; font-size: 15px; color: var(--dim);
+  }
+  .photocount b { color: var(--amber); }
+
+  /* ── 지도 ──────────────────────────────── */
+  #map { position: absolute; inset: 0; background: #0d0f15; }
+  .maplabel {
+    position: absolute; z-index: 500; left: 50%; bottom: 30px; transform: translateX(-50%);
+    background: rgba(7, 8, 11, 0.85); border: 1px solid var(--amber);
+    border-radius: 999px; padding: 12px 26px;
+    font-size: clamp(16px, 2vw, 22px); font-weight: 500;
+    max-width: 80vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .maplabel .live { color: var(--ok); font-family: var(--font-display); font-size: 0.75em; letter-spacing: 0.2em; margin-right: 10px; }
+
+  /* ── 텍스트 ─────────────────────────────── */
+  #scene-text { align-items: center; justify-content: center; padding: 6vw; }
+  #text-body {
+    text-align: center; line-height: 1.55; font-weight: 500;
+    white-space: pre-wrap; word-break: keep-all;
+    max-height: 100%; overflow: hidden;
+  }
+  #text-body.size-m { font-size: clamp(28px, 4.5vw, 56px); }
+  #text-body.size-l { font-size: clamp(40px, 7vw, 90px); }
+  #text-body.size-xl { font-size: clamp(56px, 10vw, 130px); }
+
+  /* ── 링크 ──────────────────────────────── */
+  #scene-link { flex-direction: column; align-items: center; justify-content: center; gap: 30px; padding: 6vw; }
+  #link-url {
+    font-family: var(--font-display); color: var(--amber);
+    font-size: clamp(18px, 2.6vw, 30px); letter-spacing: 0.04em;
+    max-width: 86vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  #link-open { font-size: clamp(18px, 2.4vw, 26px); padding: 20px 54px; border-radius: 16px; }
+</style>
+</head>
+<body>
+<div class="topbar" id="topbar">
+  <div class="wordmark">TEM<span class="tick">I</span>R</div>
+  <div class="chip">CODE <b id="bar-code">------</b></div>
+  <div class="chip"><span class="dot wait" id="bar-dot"></span><span id="bar-status">리모컨 대기</span></div>
+  <div class="spacer"></div>
+  <button class="iconbtn" id="btn-full" title="전체화면">⛶</button>
+</div>
+
+<div class="stage">
+  <section class="scene on" id="scene-pair">
+    <div class="hud-label rise">Pairing Code</div>
+    <div class="paircode brackets rise" id="pair-code"><i></i><i></i><i></i><i></i>······</div>
+    <div class="pairrow rise">
+      <div class="qrbox"><img id="pair-qr" alt="QR"></div>
+      <div class="pairhelp">
+        <b>아이폰 카메라</b>로 QR을 스캔하거나,<br>
+        아이폰에서 <span class="pairurl" id="pair-url"></span> 접속 후<br>
+        위의 <b>코드 6자리</b>를 입력하세요.
+      </div>
+    </div>
+    <div class="pairstatus"><span class="dot wait"></span>리모컨 연결 대기 중</div>
+  </section>
+
+  <section class="scene" id="scene-idle">
+    <div class="clock"><span id="clock-hm">--:--</span><span class="sec" id="clock-s">--</span></div>
+    <div class="datefmt" id="clock-date"></div>
+  </section>
+
+  <section class="scene" id="scene-youtube"><div id="yt-holder"></div></section>
+
+  <section class="scene" id="scene-photo">
+    <img id="photo-img" alt="">
+    <div class="photocount"><b id="photo-idx">0</b> / <span id="photo-total">0</span></div>
+  </section>
+
+  <section class="scene" id="scene-map">
+    <div id="map"></div>
+    <div class="maplabel" id="map-label" style="display:none"></div>
+  </section>
+
+  <section class="scene" id="scene-text"><div id="text-body" class="size-l"></div></section>
+
+  <section class="scene" id="scene-link">
+    <div class="hud-label">Shared Link</div>
+    <div id="link-url"></div>
+    <a id="link-open" class="btn primary" target="_blank" rel="noopener">열기 ↗</a>
+  </section>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+let code = null;
+let ws = null;
+let wsAttempt = 0;
+let currentScene = "idle";
+let remoteCount = 0;
+let soundUnlocked = false;   // 페이지에 사용자 제스처가 들어왔는지 (유튜브 소리 자동재생용)
+let ytTime = 0;              // 유튜브 iframe이 알려주는 현재 재생 시각
+let map = null, mapMarker = null, leafletLoading = null;
+
+/* ── 부팅: 룸 확보 ─────────────────────────── */
+async function boot() {
+  const urlCode = new URLSearchParams(location.search).get("code");
+  if (urlCode) {
+    const r = await fetch(`/api/room/${urlCode}`);
+    if (r.ok) code = urlCode;
+  }
+  if (!code) {
+    const r = await fetch("/api/room", { method: "POST" });
+    code = (await r.json()).code;
+    history.replaceState(null, "", `/tv?code=${code}`);
+  }
+  $("bar-code").textContent = code;
+  $("pair-code").innerHTML = "<i></i><i></i><i></i><i></i>" + code.split("").join(" ");
+  $("pair-qr").src = `/qr/${code}.png`;
+  $("pair-url").textContent = location.host;
+  connect();
+}
+
+/* ── WebSocket ────────────────────────────── */
+function connect() {
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(`${proto}://${location.host}/ws/${code}?role=tv`);
+
+  ws.onopen = () => { wsAttempt = 0; };
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === "init" && msg.state) applyScene(msg.state);
+    else if (msg.type === "scene") applyScene(msg);
+    else if (msg.type === "control") handleControl(msg);
+    else if (msg.type === "presence") {
+      remoteCount = msg.remoteCount;
+      updatePresence();
+    } else if (msg.type === "error" && msg.error === "room-not-found") {
+      code = null;
+      history.replaceState(null, "", "/tv");
+      boot();
+    }
+  };
+  ws.onclose = () => {
+    $("bar-dot").className = "dot off";
+    $("bar-status").textContent = "재연결 중…";
+    setTimeout(connect, Math.min(1000 * 2 ** wsAttempt++, 10000));
+  };
+}
+setInterval(() => { if (ws && ws.readyState === 1) ws.send('{"type":"ping"}'); }, 20000);
+
+function updatePresence() {
+  if (remoteCount > 0) {
+    $("bar-dot").className = "dot on";
+    $("bar-status").textContent = `리모컨 ${remoteCount}대 연결됨`;
+  } else {
+    $("bar-dot").className = "dot wait";
+    $("bar-status").textContent = "리모컨 대기";
+  }
+  render();
+}
+
+/* ── 화면 전환 ────────────────────────────── */
+function applyScene(msg) {
+  currentScene = msg.scene || "idle";
+  const p = msg.payload || {};
+
+  if (currentScene === "youtube") showYoutube(p);
+  else if (currentScene === "photo") showPhoto(p);
+  else if (currentScene === "map") showMap(p);
+  else if (currentScene === "text") showText(p);
+  else if (currentScene === "link") showLink(p);
+  render();
+}
+
+function render() {
+  const visible = currentScene === "idle"
+    ? (remoteCount > 0 ? "scene-idle" : "scene-pair")
+    : `scene-${currentScene}`;
+  document.querySelectorAll(".scene").forEach((s) => s.classList.toggle("on", s.id === visible));
+  if (visible === "scene-map" && map) setTimeout(() => map.invalidateSize(), 60);
+}
+
+/* ── 유튜브 ──────────────────────────────── */
+function buildYt(videoId, start) {
+  const params = new URLSearchParams({
+    enablejsapi: 1, autoplay: 1, playsinline: 1, rel: 0,
+    start: start || 0, mute: soundUnlocked ? 0 : 1,
+  });
+  $("yt-holder").innerHTML =
+    `<iframe id="yt-frame" src="https://www.youtube.com/embed/${videoId}?${params}" allow="autoplay; encrypted-media; fullscreen"></iframe>`;
+  const frame = $("yt-frame");
+  frame.onload = () => {
+    frame.contentWindow.postMessage(JSON.stringify({ event: "listening", id: 1, channel: "widget" }), "*");
+  };
+}
+
+function showYoutube(p) {
+  if (!p.videoId) return;
+  buildYt(p.videoId, p.start);
+  if (!soundUnlocked) {
+    const holder = $("yt-holder");
+    const overlay = document.createElement("div");
+    overlay.className = "tapstart";
+    overlay.innerHTML = `<div class="play">▶</div><div class="hud-label" style="font-size:14px">탭하면 소리와 함께 재생됩니다</div>`;
+    overlay.onclick = () => { soundUnlocked = true; overlay.remove(); buildYt(p.videoId, Math.floor(ytTime)); };
+    holder.parentElement.appendChild(overlay);
+  }
+}
+
+// iframe이 보내는 재생 정보에서 현재 시각 수집 (±10초 탐색에 사용)
+window.addEventListener("message", (e) => {
+  if (typeof e.data !== "string") return;
+  try {
+    const d = JSON.parse(e.data);
+    if (d.event === "infoDelivery" && d.info && typeof d.info.currentTime === "number")
+      ytTime = d.info.currentTime;
+  } catch (_) {}
+});
+
+function ytCmd(func, args = []) {
+  const frame = $("yt-frame");
+  if (frame) frame.contentWindow.postMessage(JSON.stringify({ event: "command", func, args }), "*");
+}
+
+function handleControl(msg) {
+  const a = msg.action;
+  if (a === "play") ytCmd("playVideo");
+  else if (a === "pause") ytCmd("pauseVideo");
+  else if (a === "seek") ytCmd("seekTo", [Math.max(0, ytTime + msg.delta), true]);
+  else if (a === "mute") ytCmd("mute");
+  else if (a === "unmute") ytCmd("unMute");
+  else if (a === "volume") ytCmd("setVolume", [msg.value]);
+}
+
+/* ── 사진 ───────────────────────────────── */
+function showPhoto(p) {
+  const items = p.items || [];
+  const idx = Math.min(Math.max(p.index || 0, 0), items.length - 1);
+  if (items.length === 0) return;
+  $("photo-img").src = items[idx];
+  $("photo-idx").textContent = idx + 1;
+  $("photo-total").textContent = items.length;
+}
+
+/* ── 지도 (Leaflet 지연 로딩) ─────────────── */
+function loadLeaflet() {
+  if (window.L) return Promise.resolve();
+  if (leafletLoading) return leafletLoading;
+  leafletLoading = new Promise((res) => {
+    const css = document.createElement("link");
+    css.rel = "stylesheet";
+    css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+    document.head.appendChild(css);
+    const js = document.createElement("script");
+    js.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+    js.onload = res;
+    document.head.appendChild(js);
+  });
+  return leafletLoading;
+}
+
+async function showMap(p) {
+  await loadLeaflet();
+  if (!map) {
+    map = L.map("map", { zoomControl: false, attributionControl: false });
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+  }
+  const zoom = p.zoom || 15;
+  if (!mapMarker) mapMarker = L.marker([p.lat, p.lng]).addTo(map);
+  else mapMarker.setLatLng([p.lat, p.lng]);
+  if (p.live) map.panTo([p.lat, p.lng]);          // 실시간 추적은 부드럽게 따라가기
+  else map.setView([p.lat, p.lng], zoom);
+  const label = $("map-label");
+  if (p.label) {
+    label.style.display = "block";
+    label.innerHTML = (p.live ? '<span class="live">● LIVE</span>' : "") +
+      p.label.replace(/</g, "&lt;");
+  } else label.style.display = "none";
+}
+
+/* ── 텍스트 / 링크 ────────────────────────── */
+function showText(p) {
+  const el = $("text-body");
+  el.textContent = p.text || "";
+  el.className = `size-${p.size || "l"}`;
+}
+function showLink(p) {
+  $("link-url").textContent = p.url || "";
+  $("link-open").href = p.url || "#";
+}
+
+/* ── 시계 ───────────────────────────────── */
+const DAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+setInterval(() => {
+  const n = new Date();
+  $("clock-hm").textContent =
+    `${String(n.getHours()).padStart(2, "0")}:${String(n.getMinutes()).padStart(2, "0")}`;
+  $("clock-s").textContent = String(n.getSeconds()).padStart(2, "0");
+  $("clock-date").textContent =
+    `${n.getFullYear()}.${String(n.getMonth() + 1).padStart(2, "0")}.${String(n.getDate()).padStart(2, "0")} ${DAYS[n.getDay()]}`;
+}, 1000);
+
+/* ── 상단바 자동 숨김 / 전체화면 ───────────── */
+let hideTimer = null;
+function pokeTopbar() {
+  $("topbar").classList.remove("hidden");
+  clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => {
+    if (!(currentScene === "idle" && remoteCount === 0)) $("topbar").classList.add("hidden");
+  }, 4000);
+}
+["pointermove", "pointerdown", "touchstart"].forEach((ev) =>
+  document.addEventListener(ev, () => { soundUnlocked = true; pokeTopbar(); }, { passive: true }));
+pokeTopbar();
+
+$("btn-full").onclick = () => {
+  const el = document.documentElement;
+  if (document.fullscreenElement) document.exitFullscreen();
+  else (el.requestFullscreen || el.webkitRequestFullscreen || (() => {})).call(el);
+};
+
+boot();
+</script>
+</body>
+</html>

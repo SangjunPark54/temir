@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: temir
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /

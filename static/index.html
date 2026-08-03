@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Temir — 아이폰으로 조작하는 Tesla 스크린</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚙</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/temir.css">
+<style>
+  .wrap {
+    position: relative; z-index: 1;
+    min-height: 100dvh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: clamp(28px, 5vh, 56px);
+    padding: 32px 20px calc(32px + env(safe-area-inset-bottom));
+  }
+  .hero { text-align: center; }
+  .hero .wordmark { font-size: clamp(40px, 8vw, 76px); }
+  .hero .sub {
+    margin-top: 14px;
+    color: var(--dim);
+    font-size: clamp(14px, 2vw, 17px);
+    line-height: 1.7;
+  }
+  .hero .rule {
+    width: 64px; height: 2px; margin: 22px auto 0;
+    background: linear-gradient(90deg, transparent, var(--amber), transparent);
+  }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 340px));
+    gap: 18px;
+    width: 100%;
+    max-width: 760px;
+    justify-content: center;
+  }
+  a.card {
+    display: block;
+    text-decoration: none;
+    color: var(--text);
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line-strong);
+    border-radius: 18px;
+    padding: 30px 26px;
+    transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+  }
+  a.card:hover, a.card:active {
+    border-color: var(--amber);
+    transform: translateY(-3px);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5), 0 0 0 3px var(--amber-glow);
+  }
+  .card .glyph { font-size: 34px; }
+  .card h2 {
+    font-family: var(--font-display);
+    font-size: 20px;
+    letter-spacing: 0.12em;
+    margin: 14px 0 8px;
+  }
+  .card h2 em { color: var(--amber); font-style: normal; }
+  .card p { color: var(--dim); font-size: 14px; line-height: 1.65; }
+  .steps {
+    max-width: 760px;
+    width: 100%;
+    border-top: 1px solid var(--line);
+    padding-top: 22px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+  .step { display: flex; gap: 12px; align-items: flex-start; }
+  .step b {
+    font-family: var(--font-display);
+    color: var(--amber);
+    font-size: 15px;
+    min-width: 22px;
+  }
+  .step span { color: var(--dim); font-size: 13.5px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero rise">
+    <div class="wordmark">TEM<span class="tick">I</span>R</div>
+    <div class="rule"></div>
+    <p class="sub">아이폰이 리모컨, Tesla 브라우저가 스크린.<br>앱 설치 없이 웹으로 연결됩니다.</p>
+  </header>
+
+  <nav class="cards">
+    <a class="card rise" style="animation-delay:.1s" href="/tv">
+      <div class="glyph">🚙</div>
+      <h2>TESLA <em>SCREEN</em></h2>
+      <p>차량 브라우저에서 여세요. 연결 코드와 QR이 표시됩니다.</p>
+    </a>
+    <a class="card rise" style="animation-delay:.2s" href="/remote">
+      <div class="glyph">📱</div>
+      <h2>IPHONE <em>REMOTE</em></h2>
+      <p>아이폰에서 여세요. 유튜브·사진·지도·메모를 차량 화면으로 보냅니다.</p>
+    </a>
+  </nav>
+
+  <section class="steps rise" style="animation-delay:.3s">
+    <div class="step"><b>01</b><span>Tesla 브라우저에서 이 주소를 열고 <b style="color:var(--text)">TESLA SCREEN</b> 선택</span></div>
+    <div class="step"><b>02</b><span>아이폰 카메라로 화면의 QR을 스캔 (또는 코드 6자리 입력)</span></div>
+    <div class="step"><b>03</b><span>아이폰에서 고른 콘텐츠가 차량 화면에 실시간 표시</span></div>
+  </section>
+</div>
+</body>
+</html>
